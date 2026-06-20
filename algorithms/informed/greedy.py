@@ -26,16 +26,40 @@ class Greedy(BaseAlgorithm):
         
         Returns:
             list[tuple]: Đường đi [(row, col), ...] hoặc [] nếu không tìm được.
-        
-        Gợi ý implement:
-            1. Tạo priority queue, đưa (h=heuristic, start_node) vào
-            2. Tạo set visited
-            3. Lặp: lấy node có h(n) nhỏ nhất
-               - Nếu là goal → truy vết đường đi
-               - Mở rộng neighbors chưa visited
-               - Tính h(n) = manhattan_distance(neighbor, goal)
-               - Thêm vào heap
-            4. Cập nhật self.visited và self.steps
         """
-        # TODO: Implement Greedy Best-First Search
-        pass
+        if not self.problem.is_valid():
+            return []
+            
+        start_pos = self.problem.start
+        goal_pos = self.problem.goal
+        start_h = manhattan_distance(start_pos, goal_pos)
+        start_node = Node(start_pos[0], start_pos[1], cost=0, heuristic=start_h)
+        
+        heap = []
+        counter = 0
+        heapq.heappush(heap, (start_h, counter, start_node))
+        
+        visited_set = set()
+        
+        while heap:
+            _, _, current_node = heapq.heappop(heap)
+            pos = current_node.position
+            
+            if pos in visited_set:
+                continue
+                
+            visited_set.add(pos)
+            self.visited.append(pos)
+            self.steps += 1
+            
+            if self.problem.is_goal(pos):
+                return [n.position for n in current_node.trace_path()]
+                
+            for next_pos, weight in self.problem.get_successors(pos):
+                if next_pos not in visited_set:
+                    next_h = manhattan_distance(next_pos, goal_pos)
+                    child_node = Node(next_pos[0], next_pos[1], cost=current_node.cost + weight, heuristic=next_h, parent=current_node)
+                    counter += 1
+                    heapq.heappush(heap, (next_h, counter, child_node))
+                    
+        return []

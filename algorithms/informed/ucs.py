@@ -25,16 +25,38 @@ class UCS(BaseAlgorithm):
         
         Returns:
             list[tuple]: Đường đi [(row, col), ...] hoặc [] nếu không tìm được.
-        
-        Gợi ý implement:
-            1. Tạo priority queue (heapq), đưa (cost=0, start_node) vào
-            2. Tạo dict visited: position → best_cost (để tránh duyệt lại với chi phí cao hơn)
-            3. Lặp: lấy node có cost nhỏ nhất từ heap
-               - Nếu đã visited với cost tốt hơn → bỏ qua
-               - Nếu là goal → truy vết đường đi
-               - Mở rộng neighbors: tính cost mới = current.cost + edge_weight
-                 → Nếu cost mới tốt hơn → thêm vào heap
-            4. Cập nhật self.visited và self.steps
         """
-        # TODO: Implement UCS
-        pass
+        if not self.problem.is_valid():
+            return []
+            
+        start_pos = self.problem.start
+        start_node = Node(start_pos[0], start_pos[1], cost=0)
+        
+        heap = []
+        counter = 0
+        heapq.heappush(heap, (0, counter, start_node))
+        
+        best_cost = {start_pos: 0.0}
+        
+        while heap:
+            current_cost, _, current_node = heapq.heappop(heap)
+            pos = current_node.position
+            
+            if current_cost > best_cost.get(pos, float('inf')):
+                continue
+                
+            self.visited.append(pos)
+            self.steps += 1
+            
+            if self.problem.is_goal(pos):
+                return [n.position for n in current_node.trace_path()]
+                
+            for next_pos, weight in self.problem.get_successors(pos):
+                new_cost = current_cost + weight
+                if new_cost < best_cost.get(next_pos, float('inf')):
+                    best_cost[next_pos] = new_cost
+                    counter += 1
+                    child_node = Node(next_pos[0], next_pos[1], cost=new_cost, parent=current_node)
+                    heapq.heappush(heap, (new_cost, counter, child_node))
+                    
+        return []

@@ -25,16 +25,39 @@ class SimpleHillClimbing(BaseAlgorithm):
         
         Returns:
             list[tuple]: Đường đi tìm được hoặc [] nếu bị kẹt.
-        
-        Gợi ý implement:
-            1. Bắt đầu từ start, tính h(start) = manhattan_distance(start, goal)
-            2. Lặp:
-               - Duyệt từng neighbor của current
-               - Tính h(neighbor)
-               - Nếu h(neighbor) < h(current) → di chuyển đến neighbor (chọn ngay, không so sánh hết)
-               - Nếu không có neighbor nào tốt hơn → DỪNG (bị kẹt local minimum)
-               - Nếu đến goal → trả về đường đi
-            3. Cập nhật self.visited
         """
-        # TODO: Implement Simple Hill Climbing
-        pass
+        if not self.problem.is_valid():
+            return []
+            
+        start_pos = self.problem.start
+        goal_pos = self.problem.goal
+        
+        current_h = manhattan_distance(start_pos, goal_pos)
+        current_node = Node(start_pos[0], start_pos[1], cost=0, heuristic=current_h)
+        
+        self.visited.append(start_pos)
+        self.steps += 1
+        
+        if self.problem.is_goal(start_pos):
+            return [start_pos]
+            
+        while True:
+            pos = current_node.position
+            found_better = False
+            for next_pos, cost in self.problem.get_successors(pos):
+                next_h = manhattan_distance(next_pos, goal_pos)
+                if next_h < current_h:
+                    current_h = next_h
+                    current_node = Node(next_pos[0], next_pos[1], cost=current_node.cost + cost, heuristic=next_h, parent=current_node)
+                    self.visited.append(next_pos)
+                    self.steps += 1
+                    found_better = True
+                    break
+            
+            if not found_better:
+                break
+                
+            if self.problem.is_goal(current_node.position):
+                return [n.position for n in current_node.trace_path()]
+                
+        return [n.position for n in current_node.trace_path()]

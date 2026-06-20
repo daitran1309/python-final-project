@@ -24,14 +24,35 @@ class DFS(BaseAlgorithm):
         
         Returns:
             list[tuple]: Đường đi [(row, col), ...] hoặc [] nếu không tìm được.
-        
-        Gợi ý implement:
-            1. Tạo stack, đưa start node vào
-            2. Tạo set visited
-            3. Lặp: lấy node từ đỉnh stack
-               - Nếu là goal → truy vết đường đi
-               - Mở rộng neighbors chưa visited → push vào stack
-            4. Cập nhật self.visited và self.steps
         """
-        # TODO: Implement DFS
-        pass
+        if not self.problem.is_valid():
+            return []
+        
+        start_pos = self.problem.start
+        if self.problem.is_goal(start_pos):
+            self.visited.append(start_pos)
+            return [start_pos]
+            
+        start_node = Node(start_pos[0], start_pos[1])
+        stack = [start_node]
+        visited_set = set()
+        
+        while stack:
+            current_node = stack.pop()
+            pos = current_node.position
+            
+            if pos in visited_set:
+                continue
+            visited_set.add(pos)
+            self.visited.append(pos)
+            self.steps += 1
+            
+            if self.problem.is_goal(pos):
+                return [n.position for n in current_node.trace_path()]
+                
+            # Duyệt các neighbor kề
+            for next_pos, cost in self.problem.get_successors(pos):
+                if next_pos not in visited_set:
+                    child_node = Node(next_pos[0], next_pos[1], cost=current_node.cost + cost, parent=current_node)
+                    stack.append(child_node)
+        return []

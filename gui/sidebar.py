@@ -57,12 +57,10 @@ class Sidebar:
         self.draw_mode = "wall"
         self.animation_speed = config.ANIMATION_SPEED_DEFAULT
         self.metrics = None
-        self.metrics_history = []  # Lịch sử so sánh
+        self.metrics_history = []
 
-        # Scroll offset cho sidebar dài
         self.scroll_y = 0
 
-        # Speed slider
         self.speed_min = config.ANIMATION_SPEED_MIN
         self.speed_max = config.ANIMATION_SPEED_MAX
         self.is_dragging_slider = False
@@ -70,66 +68,64 @@ class Sidebar:
         self._create_buttons()
 
     def _create_buttons(self):
-        """Tạo tất cả buttons."""
+        """Tạo tất cả các nút bấm với layout tối ưu."""
         pad = 12
         btn_w = self.width - 2 * pad
-        btn_h = 30
-        y = self.y + 50  # Sau header
-
-        # === Section: Nhóm thuật toán ===
+        
+        # === Section 1: Nhóm thuật toán (2 cột) ===
         self.group_buttons = []
-        for group_name in config.ALGORITHM_GROUPS:
-            btn = Button(
-                self.x + pad, y, btn_w, btn_h,
-                group_name, font_size=12
-            )
+        group_btn_w = (btn_w - 6) // 2
+        group_btn_h = 26
+        y = self.y + 65
+        
+        for i, group_name in enumerate(config.ALGORITHM_GROUPS):
+            row_idx = i // 2
+            col_idx = i % 2
+            bx = self.x + pad + col_idx * (group_btn_w + 6)
+            by = y + row_idx * (group_btn_h + 4)
+            btn = Button(bx, by, group_btn_w, group_btn_h, group_name, font_size=10)
             self.group_buttons.append((group_name, btn))
-            y += btn_h + 3
-
-        y += 8
-        self.algo_buttons_y = y
+            
+        self.algo_buttons_y = y + 3 * (group_btn_h + 4) + 15
         self.algo_buttons = []
 
-        # === Section: Nút điều khiển (dưới cùng, tính từ bottom) ===
-        bottom = self.height
+        # === Section 2: Speed Slider & Run/Reset side-by-side ===
+        # Các nút điều khiển đặt cố định phía dưới
+        self.slider_y = self.height - 240
+        self.slider_rect = pygame.Rect(self.x + pad, self.slider_y + 18, btn_w, 8)
+        
+        # Nút Run & Reset side-by-side
+        control_y = self.slider_y + 40
+        ctrl_btn_w = (btn_w - 6) // 2
+        self.btn_run = Button(
+            self.x + pad, control_y, ctrl_btn_w, 32,
+            "Run", font_size=12,
+            color=Colors.BTN_RUN, hover_color=Colors.BTN_RUN_HOVER,
+            icon="▶"
+        )
+        self.btn_reset = Button(
+            self.x + pad + ctrl_btn_w + 6, control_y, ctrl_btn_w, 32,
+            "Reset", font_size=12,
+            color=Colors.BTN_RESET, hover_color=Colors.BTN_RESET_HOVER,
+            icon="↻"
+        )
 
-        # Draw mode (dưới cùng)
+        # === Section 3: Draw Mode (3 cột) ===
         draw_modes = [
             ("Wall", "wall"), ("Start", "start"), ("Goal", "goal"),
             ("Weight", "weight"), ("Forbid", "forbidden"), ("Erase", "erase")
         ]
         self.draw_mode_buttons = []
-        mode_btn_w = (btn_w - 2 * 4) // 3
-        draw_y = bottom - 75
+        mode_btn_w = (btn_w - 8) // 3
+        mode_btn_h = 24
+        draw_y = control_y + 48
         for i, (label, mode) in enumerate(draw_modes):
             row_idx = i // 3
             col_idx = i % 3
             bx = self.x + pad + col_idx * (mode_btn_w + 4)
-            by = draw_y + row_idx * (btn_h + 3)
-            btn = Button(bx, by, mode_btn_w, btn_h - 2, label, font_size=11)
+            by = draw_y + row_idx * (mode_btn_h + 3)
+            btn = Button(bx, by, mode_btn_w, mode_btn_h, label, font_size=10)
             self.draw_mode_buttons.append((mode, btn))
-
-        # Reset button
-        reset_y = draw_y - 42
-        self.btn_reset = Button(
-            self.x + pad, reset_y, btn_w, 34,
-            "Reset", font_size=14,
-            color=Colors.BTN_RESET, hover_color=Colors.BTN_RESET_HOVER,
-            icon="↻"
-        )
-
-        # Run button
-        run_y = reset_y - 42
-        self.btn_run = Button(
-            self.x + pad, run_y, btn_w, 36,
-            "Run Algorithm", font_size=14,
-            color=Colors.BTN_RUN, hover_color=Colors.BTN_RUN_HOVER,
-            icon="▶"
-        )
-
-        # Speed slider Y
-        self.slider_y = run_y - 40
-        self.slider_rect = pygame.Rect(self.x + pad, self.slider_y + 18, btn_w, 8)
 
     def update_algo_buttons(self):
         """Cập nhật thuật toán khi đổi nhóm."""
@@ -137,16 +133,20 @@ class Sidebar:
         if self.selected_group and self.selected_group in config.ALGORITHM_GROUPS:
             pad = 12
             btn_w = self.width - 2 * pad
-            btn_h = 30
+            btn_h = 26
             y = self.algo_buttons_y
 
-            for algo_name in config.ALGORITHM_GROUPS[self.selected_group]:
+            algos = config.ALGORITHM_GROUPS[self.selected_group]
+            if self.selected_algorithm not in algos:
+                self.selected_algorithm = algos[0]
+
+            for algo_name in algos:
                 btn = Button(
                     self.x + pad, y, btn_w, btn_h,
-                    algo_name, font_size=12
+                    algo_name, font_size=11
                 )
                 self.algo_buttons.append((algo_name, btn))
-                y += btn_h + 3
+                y += btn_h + 4
 
     def draw(self, surface):
         """Vẽ sidebar premium."""
@@ -164,6 +164,7 @@ class Sidebar:
 
         # === Header ===
         self._draw_header(surface)
+        self._draw_section_label(surface, "Algorithm Groups", 50)
 
         # === Nhóm thuật toán ===
         for group_name, btn in self.group_buttons:
@@ -171,6 +172,7 @@ class Sidebar:
             btn.draw(surface)
 
         # === Thuật toán cụ thể ===
+        self._draw_section_label(surface, "Select Algorithm", self.algo_buttons_y - 14)
         for algo_name, btn in self.algo_buttons:
             btn.is_active = (algo_name == self.selected_algorithm)
             btn.draw(surface)
@@ -188,7 +190,7 @@ class Sidebar:
 
         # === Draw Mode ===
         self._draw_section_label(surface, "Draw Mode",
-                                 self.draw_mode_buttons[0][1].rect.y - 20)
+                                 self.draw_mode_buttons[0][1].rect.y - 14)
         for mode, btn in self.draw_mode_buttons:
             btn.is_active = (mode == self.draw_mode)
             btn.draw(surface)
@@ -198,25 +200,22 @@ class Sidebar:
 
     def _draw_header(self, surface):
         """Vẽ header trên cùng sidebar."""
-        # Nền header
-        header_rect = pygame.Rect(self.x, 0, self.width, 45)
-        header_surf = pygame.Surface((self.width, 45), pygame.SRCALPHA)
+        header_rect = pygame.Rect(self.x, 0, self.width, 42)
+        header_surf = pygame.Surface((self.width, 42), pygame.SRCALPHA)
         pygame.draw.rect(header_surf, (*Colors.HEADER_BG, 220), header_surf.get_rect())
         surface.blit(header_surf, (self.x, 0))
 
-        # Accent line dưới header
         pygame.draw.line(surface, Colors.HEADER_ACCENT,
-                         (self.x + 12, 44), (self.x + self.width - 12, 44), 2)
+                         (self.x + 12, 41), (self.x + self.width - 12, 41), 2)
 
-        # Title
-        font = pygame.font.SysFont("Segoe UI", 16, bold=True)
+        font = pygame.font.SysFont("Segoe UI", 15, bold=True)
         title = font.render("🤖 AI Search Visualizer", True, Colors.TEXT_HIGHLIGHT)
-        surface.blit(title, (self.x + 12, 12))
+        surface.blit(title, (self.x + 12, 10))
 
     def _draw_section_label(self, surface, text, y):
         """Vẽ label cho section."""
-        font = pygame.font.SysFont("Segoe UI", 11)
-        label = font.render(text, True, Colors.TEXT_ACCENT)
+        font = pygame.font.SysFont("Segoe UI", 10, bold=True)
+        label = font.render(text.upper(), True, Colors.TEXT_ACCENT)
         surface.blit(label, (self.x + 12, y))
 
     def _draw_speed_slider(self, surface):

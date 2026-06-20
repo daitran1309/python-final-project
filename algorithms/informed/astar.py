@@ -26,18 +26,43 @@ class AStar(BaseAlgorithm):
         
         Returns:
             list[tuple]: Đường đi [(row, col), ...] hoặc [] nếu không tìm được.
-        
-        Gợi ý implement:
-            1. Tạo priority queue, đưa (f=h, start_node) vào
-            2. Tạo dict g_score: position → best g(n) (chi phí tốt nhất đến vị trí đó)
-            3. Lặp: lấy node có f(n) nhỏ nhất
-               - Nếu là goal → truy vết đường đi
-               - Mở rộng neighbors:
-                 new_g = current.cost + edge_weight
-                 new_h = manhattan_distance(neighbor, goal)
-                 new_f = new_g + new_h
-                 Nếu new_g < g_score[neighbor] → cập nhật và thêm vào heap
-            4. Cập nhật self.visited và self.steps
         """
-        # TODO: Implement A* Search
-        pass
+        if not self.problem.is_valid():
+            return []
+            
+        start_pos = self.problem.start
+        goal_pos = self.problem.goal
+        start_h = manhattan_distance(start_pos, goal_pos)
+        start_node = Node(start_pos[0], start_pos[1], cost=0, heuristic=start_h)
+        
+        heap = []
+        counter = 0
+        heapq.heappush(heap, (start_h, counter, start_node))
+        
+        g_score = {start_pos: 0.0}
+        visited_set = set()
+        
+        while heap:
+            _, _, current_node = heapq.heappop(heap)
+            pos = current_node.position
+            
+            if pos in visited_set:
+                continue
+                
+            visited_set.add(pos)
+            self.visited.append(pos)
+            self.steps += 1
+            
+            if self.problem.is_goal(pos):
+                return [n.position for n in current_node.trace_path()]
+                
+            for next_pos, weight in self.problem.get_successors(pos):
+                new_g = current_node.cost + weight
+                if new_g < g_score.get(next_pos, float('inf')):
+                    g_score[next_pos] = new_g
+                    next_h = manhattan_distance(next_pos, goal_pos)
+                    child_node = Node(next_pos[0], next_pos[1], cost=new_g, heuristic=next_h, parent=current_node)
+                    counter += 1
+                    heapq.heappush(heap, (child_node.f, counter, child_node))
+                    
+        return []

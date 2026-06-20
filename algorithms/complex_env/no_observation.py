@@ -39,51 +39,81 @@ class NoObservationSearch(BaseAlgorithm):
         Tìm chuỗi actions trên không gian belief state.
         
         Returns:
-            list[tuple]: Chuỗi actions [(dr, dc), ...] để đưa robot đến goal.
-                         Trả về [] nếu không tìm được.
-        
-        Gợi ý implement:
-            1. Initial belief state = tất cả ô trống trên grid (frozenset)
-            2. Goal test: belief state chỉ chứa {goal_position}
-            3. Tạo queue/stack, đưa initial belief state vào
-            4. Lặp:
-               - Lấy belief state hiện tại
-               - Với mỗi action (4 hướng):
-                 new_belief = {apply_action(pos, action) for pos in current_belief}
-               - Nếu new_belief là goal → truy vết actions
-               - Thêm new_belief vào queue/stack nếu chưa visited
-            5. Lưu ý: belief state rất lớn → cần tối ưu
+            list[tuple]: Chuỗi tọa độ path từ start → goal.
         """
-        # TODO: Implement No Observation Search
-        pass
+        grid = self.problem.grid
+        start_pos = self.problem.start
+        goal_pos = self.problem.goal
+        
+        if not self.problem.is_valid():
+            return []
+            
+        # Khởi tạo belief state ban đầu là tất cả các ô đi được
+        initial_belief = []
+        for r in range(grid.rows):
+            for c in range(grid.cols):
+                if grid.is_walkable(r, c):
+                    initial_belief.append((r, c))
+        initial_belief = frozenset(initial_belief)
+        
+        actions = [(-1, 0), (1, 0), (0, -1), (0, 1)] # UP, DOWN, LEFT, RIGHT
+        
+        if self.method == "bfs":
+            queue = deque([(initial_belief, [])])
+        else:
+            queue = [(initial_belief, [])]
+            
+        visited_beliefs = {initial_belief}
+        found_actions = None
+        
+        while queue:
+            self.steps += 1
+            if self.method == "bfs":
+                current_belief, action_path = queue.popleft()
+            else:
+                current_belief, action_path = queue.pop()
+                
+            if len(current_belief) == 1 and goal_pos in current_belief:
+                found_actions = action_path
+                break
+                
+            for action in actions:
+                next_belief = self._apply_action_to_belief(current_belief, action, grid)
+                if next_belief not in visited_beliefs:
+                    visited_beliefs.add(next_belief)
+                    if self.method == "bfs":
+                        queue.append((next_belief, action_path + [action]))
+                    else:
+                        queue.append((next_belief, action_path + [action]))
+                        
+        if found_actions is None:
+            return []
+            
+        # Mô phỏng từ start để lấy tọa độ di chuyển
+        coordinate_path = [start_pos]
+        curr = start_pos
+        self.visited.append(curr)
+        for act in found_actions:
+            curr = self._apply_action(curr, act, grid)
+            coordinate_path.append(curr)
+            self.visited.append(curr)
+            
+        return coordinate_path
 
     def _apply_action(self, position, action, grid):
         """
         Áp dụng action cho 1 vị trí.
         Nếu không đi được → giữ nguyên vị trí.
-        
-        Args:
-            position (tuple): Vị trí (row, col).
-            action (tuple): Hướng di chuyển (dr, dc).
-            grid (Grid): Bản đồ.
-            
-        Returns:
-            tuple: Vị trí mới sau action.
         """
-        # TODO: Implement
-        pass
+        row, col = position
+        dr, dc = action
+        nr, nc = row + dr, col + dc
+        if grid.is_walkable(nr, nc):
+            return (nr, nc)
+        return (row, col)
 
     def _apply_action_to_belief(self, belief_state, action, grid):
         """
         Áp dụng action cho TẤT CẢ vị trí trong belief state.
-        
-        Args:
-            belief_state (frozenset): Tập vị trí khả dĩ.
-            action (tuple): Hướng di chuyển.
-            grid (Grid): Bản đồ.
-            
-        Returns:
-            frozenset: Belief state mới.
         """
-        # TODO: Implement
-        pass
+        return frozenset(self._apply_action(pos, action, grid) for pos in belief_state)

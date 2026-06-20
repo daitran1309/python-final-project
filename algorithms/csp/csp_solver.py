@@ -33,32 +33,50 @@ class CSPSolver(BaseAlgorithm):
         
         Returns:
             list[tuple]: Đường đi [(row, col), ...] hoặc [] nếu không tìm được.
-        
-        Gợi ý implement:
-            1. Đặt path = [start]
-            2. Gọi đệ quy backtrack(path):
-               - Nếu path[-1] == goal → trả về path (thành công)
-               - Nếu len(path) > max_steps → return None (quá giới hạn)
-               - Với mỗi neighbor của path[-1]:
-                 a. Kiểm tra ràng buộc: not in forbidden, not in path (no cycle)
-                 b. Nếu thỏa → thêm vào path, gọi đệ quy
-                 c. Nếu đệ quy thành công → return
-                 d. Nếu không → bỏ ra khỏi path (backtrack)
-            3. Cập nhật self.visited và self.steps
         """
-        # TODO: Implement CSP Backtracking
-        pass
+        if not self.problem.is_valid():
+            return []
+            
+        start_pos = self.problem.start
+        max_steps = self.problem.get_max_steps()
+        if max_steps == float('inf'):
+            max_steps = config.CSP_MAX_STEPS
+            
+        path = [start_pos]
+        self.visited.append(start_pos)
+        self.steps += 1
+        
+        def backtrack(current_path):
+            if self.problem.is_goal(current_path[-1]):
+                return current_path
+                
+            if len(current_path) > max_steps:
+                return None
+                
+            last_pos = current_path[-1]
+            for neighbor in self.problem.grid.get_neighbors(last_pos[0], last_pos[1]):
+                if self._is_consistent(neighbor, current_path):
+                    self.visited.append(neighbor)
+                    self.steps += 1
+                    res = backtrack(current_path + [neighbor])
+                    if res is not None:
+                        return res
+            return None
+            
+        res = backtrack(path)
+        return res or []
 
     def _is_consistent(self, position, path):
         """
         Kiểm tra position có thỏa mãn tất cả ràng buộc không.
-        
-        Args:
-            position (tuple): Vị trí mới.
-            path (list): Đường đi hiện tại.
-            
-        Returns:
-            bool: True nếu thỏa mãn ràng buộc.
         """
-        # TODO: Implement constraint checking
-        pass
+        row, col = position
+        if not self.problem.grid.in_bounds(row, col):
+            return False
+        if not self.problem.grid.is_walkable(row, col):
+            return False
+        if self.problem.grid.is_forbidden(row, col):
+            return False
+        if position in path:
+            return False
+        return True

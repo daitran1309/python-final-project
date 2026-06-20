@@ -25,14 +25,31 @@ class BFS(BaseAlgorithm):
         
         Returns:
             list[tuple]: Đường đi [(row, col), ...] hoặc [] nếu không tìm được.
-        
-        Gợi ý implement:
-            1. Tạo queue, đưa start node vào
-            2. Tạo set visited để tránh duyệt lại
-            3. Lặp: lấy node từ queue
-               - Nếu là goal → truy vết đường đi
-               - Mở rộng neighbors chưa visited → thêm vào queue
-            4. Cập nhật self.visited và self.steps trong quá trình duyệt
         """
-        # TODO: Implement BFS
-        pass
+        if not self.problem.is_valid():
+            return []
+        
+        start_pos = self.problem.start
+        if self.problem.is_goal(start_pos):
+            self.visited.append(start_pos)
+            return [start_pos]
+            
+        start_node = Node(start_pos[0], start_pos[1])
+        queue = deque([start_node])
+        visited_set = {start_pos}
+        self.visited.append(start_pos)
+        
+        while queue:
+            current_node = queue.popleft()
+            self.steps += 1
+            
+            for next_pos, cost in self.problem.get_successors(current_node.position):
+                if next_pos not in visited_set:
+                    child_node = Node(next_pos[0], next_pos[1], cost=current_node.cost + cost, parent=current_node)
+                    if self.problem.is_goal(next_pos):
+                        self.visited.append(next_pos)
+                        return [n.position for n in child_node.trace_path()]
+                    visited_set.add(next_pos)
+                    self.visited.append(next_pos)
+                    queue.append(child_node)
+        return []

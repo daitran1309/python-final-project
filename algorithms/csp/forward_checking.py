@@ -24,29 +24,58 @@ class ForwardCheckingCSP(BaseAlgorithm):
         
         Returns:
             list[tuple]: Đường đi hoặc [].
-        
-        Gợi ý implement:
-            1. Như CSP Backtracking, nhưng sau mỗi bước gán:
-               - Với neighbor chưa gán (bước tiếp theo):
-                 Loại bỏ giá trị vi phạm ràng buộc khỏi domain
-               - Nếu domain trống → quay lui ngay (PRUNE)
-            2. Khi quay lui: khôi phục domain đã loại
-            3. Forward Checking giúp cắt tỉa sớm hơn Backtracking thuần
         """
-        # TODO: Implement Forward Checking CSP
-        pass
-
-    def _forward_check(self, position, path, domains):
-        """
-        Kiểm tra trước: loại giá trị vi phạm từ domain bước tiếp theo.
-        
-        Args:
-            position (tuple): Vị trí vừa gán.
-            path (list): Đường đi hiện tại.
-            domains (dict): Domain của các biến chưa gán.
+        if not self.problem.is_valid():
+            return []
             
-        Returns:
-            bool: True nếu forward check thành công (không domain nào trống).
-        """
-        # TODO: Implement
-        pass
+        start_pos = self.problem.start
+        max_steps = self.problem.get_max_steps()
+        if max_steps == float('inf'):
+            max_steps = config.CSP_MAX_STEPS
+            
+        path = [start_pos]
+        self.visited.append(start_pos)
+        self.steps += 1
+        
+        def backtrack(current_path):
+            if self.problem.is_goal(current_path[-1]):
+                return current_path
+                
+            if len(current_path) > max_steps:
+                return None
+                
+            last_pos = current_path[-1]
+            neighbors = self.problem.grid.get_neighbors(last_pos[0], last_pos[1])
+            
+            # Forward checking: lọc các neighbor hợp lệ cho bước đi tiếp theo
+            valid_neighbors = []
+            for neighbor in neighbors:
+                if self._is_consistent(neighbor, current_path):
+                    valid_neighbors.append(neighbor)
+                    
+            # Nếu không có nước đi tiếp theo hợp lệ nào (domain trống) → quay lui ngay (Prune)
+            if not valid_neighbors:
+                return None
+                
+            for neighbor in valid_neighbors:
+                self.visited.append(neighbor)
+                self.steps += 1
+                res = backtrack(current_path + [neighbor])
+                if res is not None:
+                    return res
+            return None
+            
+        res = backtrack(path)
+        return res or []
+
+    def _is_consistent(self, position, path):
+        row, col = position
+        if not self.problem.grid.in_bounds(row, col):
+            return False
+        if not self.problem.grid.is_walkable(row, col):
+            return False
+        if self.problem.grid.is_forbidden(row, col):
+            return False
+        if position in path:
+            return False
+        return True

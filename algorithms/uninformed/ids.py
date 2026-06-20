@@ -24,17 +24,18 @@ class IDS(BaseAlgorithm):
         
         Returns:
             list[tuple]: Đường đi [(row, col), ...] hoặc [] nếu không tìm được.
-        
-        Gợi ý implement:
-            1. Lặp depth_limit = 0, 1, 2, ...
-            2. Mỗi vòng: chạy DFS giới hạn depth (depth_limited_search)
-               - Nếu tìm được goal → trả về đường đi
-               - Nếu có node bị cắt (cutoff) → tăng depth_limit
-               - Nếu không có cutoff → không có lời giải
-            3. Cập nhật self.visited (gộp tất cả các lần duyệt)
         """
-        # TODO: Implement IDS
-        pass
+        if not self.problem.is_valid():
+            return []
+            
+        depth_limit = 0
+        while True:
+            result = self._depth_limited_search(depth_limit)
+            if result != 'cutoff':
+                if result is None:
+                    return []
+                return result
+            depth_limit += 1
 
     def _depth_limited_search(self, limit):
         """
@@ -49,5 +50,34 @@ class IDS(BaseAlgorithm):
                 - 'cutoff': Nếu có node bị cắt do giới hạn.
                 - None: Nếu không có lời giải trong giới hạn.
         """
-        # TODO: Implement depth-limited DFS
-        pass
+        start_pos = self.problem.start
+        start_node = Node(start_pos[0], start_pos[1])
+        path_set = set()
+        
+        def dls(node, depth):
+            pos = node.position
+            self.visited.append(pos)
+            self.steps += 1
+            
+            if self.problem.is_goal(pos):
+                return [n.position for n in node.trace_path()]
+            
+            if depth >= limit:
+                return 'cutoff'
+                
+            path_set.add(pos)
+            any_cutoff = False
+            
+            for next_pos, cost in self.problem.get_successors(pos):
+                if next_pos not in path_set:
+                    child = Node(next_pos[0], next_pos[1], cost=node.cost + cost, parent=node)
+                    result = dls(child, depth + 1)
+                    if result == 'cutoff':
+                        any_cutoff = True
+                    elif result is not None:
+                        return result
+            
+            path_set.remove(pos)
+            return 'cutoff' if any_cutoff else None
+
+        return dls(start_node, 0)
