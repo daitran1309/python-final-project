@@ -43,40 +43,43 @@ class CSPSolver(BaseAlgorithm):
             max_steps = config.CSP_MAX_STEPS
             
         path = [start_pos]
+        path_set = {start_pos}
         self.visited.append(start_pos)
         self.steps += 1
         
-        def backtrack(current_path):
-            if self.problem.is_goal(current_path[-1]):
-                return current_path
+        def backtrack():
+            if self.problem.is_goal(path[-1]):
+                return list(path)
                 
-            if len(current_path) > max_steps:
+            if len(path) > max_steps:
                 return None
                 
-            last_pos = current_path[-1]
+            last_pos = path[-1]
             for neighbor in self.problem.grid.get_neighbors(last_pos[0], last_pos[1]):
-                if self._is_consistent(neighbor, current_path):
+                if self._is_consistent(neighbor, path_set):
                     self.visited.append(neighbor)
                     self.steps += 1
-                    res = backtrack(current_path + [neighbor])
+                    path.append(neighbor)
+                    path_set.add(neighbor)
+                    res = backtrack()
                     if res is not None:
                         return res
+                    path.pop()
+                    path_set.discard(neighbor)
             return None
             
-        res = backtrack(path)
+        res = backtrack()
         return res or []
 
-    def _is_consistent(self, position, path):
+    def _is_consistent(self, position, path_set):
         """
         Kiểm tra position có thỏa mãn tất cả ràng buộc không.
+        
+        Lưu ý: in_bounds và is_walkable đã được lọc bởi grid.get_neighbors().
+        Chỉ cần kiểm tra vùng cấm và trùng lặp.
         """
-        row, col = position
-        if not self.problem.grid.in_bounds(row, col):
+        if self.problem.grid.is_forbidden(position[0], position[1]):
             return False
-        if not self.problem.grid.is_walkable(row, col):
-            return False
-        if self.problem.grid.is_forbidden(row, col):
-            return False
-        if position in path:
+        if position in path_set:
             return False
         return True
