@@ -85,7 +85,4 @@ class LocalBeamSearch(BaseAlgorithm):
                 self.visited.append(node.position)
                 self.steps += 1
                 
-        if beams:
-            beams.sort(key=lambda node: node.heuristic)
-            return [n.position for n in beams[0].trace_path()]
         return []
