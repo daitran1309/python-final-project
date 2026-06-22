@@ -34,33 +34,34 @@ class ForwardCheckingCSP(BaseAlgorithm):
             max_steps = config.CSP_MAX_STEPS
             
         path = [start_pos]
+        path_set = {start_pos}
         self.visited.append(start_pos)
         self.steps += 1
         
-        def backtrack(current_path):
-            current_node = current_path[-1]
-
-            if self.problem.is_goal(current_path[-1]):
-                return current_path
+        def backtrack():
+            if self.problem.is_goal(path[-1]):
+                return list(path)
                 
-            if len(current_path) > max_steps:
+            if len(path) > max_steps:
                 return None
                 
-            last_pos = current_path[-1]
+            last_pos = path[-1]
             neighbors = self.problem.grid.get_neighbors(last_pos[0], last_pos[1])
             
             # Forward checking: lọc các neighbor hợp lệ cho bước đi tiếp theo
             valid_neighbors = []
             for neighbor in neighbors:
-                if self._is_consistent(neighbor, current_path):
+                if self._is_consistent(neighbor, path_set):
                     if self.problem.is_goal(neighbor):
                         valid_neighbors.append(neighbor)
                         continue
-                    future_path = current_path + [neighbor]
+                    # Check future domain: thêm neighbor tạm vào path_set để kiểm tra
+                    path_set.add(neighbor)
                     future_neighbors = self.problem.grid.get_neighbors(neighbor[0], neighbor[1])
                     has_future_domain = any(
-                        self._is_consistent(f_nb, future_path) for f_nb in future_neighbors
+                        self._is_consistent(f_nb, path_set) for f_nb in future_neighbors
                     )
+                    path_set.discard(neighbor)
                     if has_future_domain:
                         valid_neighbors.append(neighbor)
                     
@@ -71,22 +72,25 @@ class ForwardCheckingCSP(BaseAlgorithm):
             for neighbor in valid_neighbors:
                 self.visited.append(neighbor)
                 self.steps += 1
-                res = backtrack(current_path + [neighbor])
+                path.append(neighbor)
+                path_set.add(neighbor)
+                res = backtrack()
                 if res is not None:
                     return res
+                path.pop()
+                path_set.discard(neighbor)
             return None
             
-        res = backtrack(path)
+        res = backtrack()
         return res or []
 
-    def _is_consistent(self, position, path):
-        row, col = position
-        if not self.problem.grid.in_bounds(row, col):
+    def _is_consistent(self, position, path_set):
+        """
+        Lưu ý: in_bounds và is_walkable đã được lọc bởi grid.get_neighbors().
+        Chỉ cần kiểm tra vùng cấm và trùng lặp.
+        """
+        if self.problem.grid.is_forbidden(position[0], position[1]):
             return False
-        if not self.problem.grid.is_walkable(row, col):
-            return False
-        if self.problem.grid.is_forbidden(row, col):
-            return False
-        if position in path:
+        if position in path_set:
             return False
         return True
