@@ -39,7 +39,7 @@ class Expectimax(AdversarialBase):
         self.visited.append(current_pos)
         visited_set = {current_pos}
 
-        limit = 200
+        limit = 1000
         step = 0
         stuck_count = 0
 
@@ -76,7 +76,7 @@ class Expectimax(AdversarialBase):
 
             if current_pos == prev_pos:
                 stuck_count += 1
-                if stuck_count > 5:
+                if stuck_count > 10:
                     break
             else:
                 stuck_count = 0

@@ -41,7 +41,7 @@ class Minimax(AdversarialBase):
         self.visited.append(current_pos)
         visited_set = {current_pos}  # Theo dõi vị trí đã đi qua để tránh lặp
 
-        limit = 200
+        limit = 1000
         step = 0
         stuck_count = 0  # Đếm số lần robot không tiến được
 
@@ -81,7 +81,7 @@ class Minimax(AdversarialBase):
 
             if current_pos == prev_pos:
                 stuck_count += 1
-                if stuck_count > 5:
+                if stuck_count > 10:
                     break  # Thoát nếu bị stuck quá lâu
             else:
                 stuck_count = 0

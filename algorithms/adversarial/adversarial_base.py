@@ -16,21 +16,37 @@ class AdversarialBase(BaseAlgorithm):
     def __init__(self, problem, name, max_depth=None):
         super().__init__(problem, name=name)
         self.max_depth = max_depth or config.ADVERSARIAL_MAX_DEPTH
-        self.total_walls_placed = 0  # Tổng số tường đã đặt
-        self.max_walls = config.ADVERSARIAL_MAX_WALLS  # Giới hạn tổng tường
-        self.wall_lifetime = config.ADVERSARIAL_WALL_LIFETIME  # Số lượt tường tồn tại
-        # Danh sách tường tạm: [(row, col, remaining_turns), ...]
+        self.total_walls_placed = 0
+        self.max_walls = config.ADVERSARIAL_MAX_WALLS
+        self.wall_lifetime = config.ADVERSARIAL_WALL_LIFETIME
         self.temp_walls = []
-        self.wall_history = []  # Lưu trạng thái tường ở mỗi bước cho GUI
-        self.game_history = []  # Lưu lịch sử vị trí tường qua mỗi bước
+        self.wall_history = []
+        self.game_history = []
+        self._compute_true_distances()
+
+    def _compute_true_distances(self):
+        """Tính khoảng cách thực tế từ mọi ô đến Đích (bỏ qua tường tạm thời). Giúp robot không bị kẹt ở ngõ cụt."""
+        self.true_distances = {}
+        if not self.problem.goal: return
+        queue = [(self.problem.goal, 0)]
+        visited = {self.problem.goal}
+        grid = self.problem.grid
+        while queue:
+            pos, dist = queue.pop(0)
+            self.true_distances[pos] = dist
+            for nr, nc in grid.get_neighbors(pos[0], pos[1]):
+                if (nr, nc) not in visited:
+                    visited.add((nr, nc))
+                    queue.append(((nr, nc), dist + 1))
 
     def _evaluate(self, state):
-        """Hàm đánh giá trạng thái: +100 nếu đến goal, ngược lại trả -Manhattan distance."""
+        """Hàm đánh giá: Trả về -Khoảng_cách_thực_tế. Tránh dùng Manhattan vì bị kẹt ngõ cụt."""
         pos = state['robot_pos']
         goal = self.problem.goal
         if pos == goal:
-            return 100.0
-        return -float(manhattan_distance(pos, goal))
+            return 1000.0
+        dist = self.true_distances.get(pos, 9999.0)
+        return -float(dist)
 
     def _get_robot_actions(self, state):
         """
@@ -67,7 +83,7 @@ class AdversarialBase(BaseAlgorithm):
                 if dr == 0 and dc == 0:
                     continue
                 dist = abs(dr) + abs(dc)
-                # Chỉ đặt tường ở distance > 1 (cho phép đặt sát robot hơn, giảm vùng an toàn)
+                # Tăng vùng an toàn lên 1 ô (dist <= 1) để robot không bị nhốt ở góc/ngõ cụt
                 if dist <= 1:
                     continue
                 nr, nc = r + dr, c + dc
