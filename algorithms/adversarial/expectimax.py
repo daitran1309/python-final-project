@@ -87,13 +87,12 @@ class Expectimax(AdversarialBase):
             # Giảm lifetime tường tạm trước lượt env
             self._decay_walls(current_grid)
 
-            # Env chỉ hành động mỗi 2 lượt (cooldown)
-            if step % 2 == 0:
-                state = {'robot_pos': current_pos, 'grid': current_grid}
-                env_actions = self._get_env_actions(state)
-                if env_actions:
-                    chosen_action = random.choice(env_actions)
-                    self._place_wall(current_grid, chosen_action)
+            # Env có thể hành động mỗi lượt, bị giới hạn bởi max_walls
+            state = {'robot_pos': current_pos, 'grid': current_grid}
+            env_actions = self._get_env_actions(state)
+            if env_actions:
+                chosen_action = random.choice(env_actions)
+                self._place_wall(current_grid, chosen_action)
 
             # Lưu lại trạng thái tường sau lượt này
             self.game_history.append([(r, c) for r, c, _ in self.temp_walls])

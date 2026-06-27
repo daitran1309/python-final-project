@@ -2,7 +2,7 @@
 Adversarial Base - Class cơ sở chung cho các thuật toán đối kháng.
 
 Chứa các method dùng chung: đánh giá trạng thái, lấy actions của robot và môi trường.
-Hỗ trợ tường tạm thời (biến mất sau N lượt) để cân bằng game.
+Hỗ trợ kẹt xe/chướng ngại vật tạm thời (biến mất sau N lượt) đại diện cho giao thông thực tế.
 """
 
 from algorithms.base import BaseAlgorithm
@@ -21,6 +21,7 @@ class AdversarialBase(BaseAlgorithm):
         self.wall_lifetime = config.ADVERSARIAL_WALL_LIFETIME  # Số lượt tường tồn tại
         # Danh sách tường tạm: [(row, col, remaining_turns), ...]
         self.temp_walls = []
+        self.wall_history = []  # Lưu trạng thái tường ở mỗi bước cho GUI
         self.game_history = []  # Lưu lịch sử vị trí tường qua mỗi bước
 
     def _evaluate(self, state):
@@ -32,15 +33,23 @@ class AdversarialBase(BaseAlgorithm):
         return -float(manhattan_distance(pos, goal))
 
     def _get_robot_actions(self, state):
-        """Lấy danh sách nước đi hợp lệ của robot (các ô kề đi được)."""
+        """
+        Lấy danh sách nước đi hợp lệ của robot.
+        Đối với Robot Giao Hàng:
+        - Có thể di chuyển sang các ô kề bên.
+        - Có thể ĐỨNG CHỜ (stay in place) nếu phía trước đang kẹt xe (tường tạm).
+        """
         pos = state['robot_pos']
         grid = state['grid']
-        return grid.get_neighbors(pos[0], pos[1])
+        actions = grid.get_neighbors(pos[0], pos[1])
+        # Cho phép robot đứng chờ tại chỗ
+        actions.append(pos)
+        return actions
 
     def _get_env_actions(self, state):
         """
         Lấy danh sách nước đi của môi trường (đặt vật cản).
-        
+
         Chọn các ô trống trong bán kính 3 quanh robot, nhưng bảo vệ
         ô gần robot (distance <= 2) để robot không bị nhốt ngay.
         Giới hạn số lượng theo ADVERSARIAL_NUM_OBSTACLES.
@@ -48,10 +57,10 @@ class AdversarialBase(BaseAlgorithm):
         # Nếu đã đạt giới hạn tổng tường → không đặt thêm
         if self.total_walls_placed >= self.max_walls:
             return []
-            
+
         r, c = state['robot_pos']
         grid = state['grid']
-        
+
         candidates = []
         for dr in range(-3, 4):
             for dc in range(-3, 4):

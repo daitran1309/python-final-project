@@ -92,16 +92,15 @@ class Minimax(AdversarialBase):
             # Giảm lifetime tường tạm trước lượt env
             self._decay_walls(current_grid)
 
-            # Env chỉ hành động mỗi 2 lượt (cooldown)
-            if step % 2 == 0:
-                state = {'robot_pos': current_pos, 'grid': current_grid}
-                env_actions = self._get_env_actions(state)
+            # Env có thể hành động mỗi lượt, bị giới hạn bởi max_walls
+            state = {'robot_pos': current_pos, 'grid': current_grid}
+            env_actions = self._get_env_actions(state)
 
-                # Môi trường chọn nước đi cản trở nhất (MIN)
-                if env_actions:
-                    best_env_action = None
-                    best_env_val = float('inf')
-                    for action in env_actions:
+            # Môi trường chọn nước đi cản trở nhất (MIN)
+            if env_actions:
+                best_env_action = None
+                best_env_val = float('inf')
+                for action in env_actions:
                         # Đặt tường tạm thời (Do)
                         current_grid.set_cell(action[0], action[1], config.CELL_WALL)
                         next_state = {'robot_pos': current_pos, 'grid': current_grid}
@@ -115,8 +114,8 @@ class Minimax(AdversarialBase):
                             best_env_val = val
                             best_env_action = action
 
-                    if best_env_action:
-                        self._place_wall(current_grid, best_env_action)
+                if best_env_action:
+                    self._place_wall(current_grid, best_env_action)
 
             # Lưu lại trạng thái tường sau lượt này
             self.game_history.append([(r, c) for r, c, _ in self.temp_walls])
