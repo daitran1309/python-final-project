@@ -203,7 +203,6 @@ class App:
         self.current_algorithm = algorithm
         self.result_path = result or []
         self.visited_list = algorithm.visited
-        self.game_history = getattr(algorithm, 'game_history', [])
         
         # Save full metrics for final
         self.final_metrics = algorithm.get_metrics()
@@ -234,7 +233,6 @@ class App:
         self.current_algorithm = None
         self.result_path = []
         self.visited_list = []
-        self.game_history = []
         self.sidebar.metrics = None
         self.final_metrics = None
 
@@ -291,24 +289,17 @@ class App:
         # 1. Grid
         self.renderer.draw_grid(self.grid)
         
-        # 1.5 Draw Temp Walls for Adversarial
-        if getattr(self, 'game_history', None):
-            idx = -1
-            if self.is_animating:
-                idx = min(self.animation_index, len(self.game_history) - 1)
-            elif self.is_animating_path:
-                idx = min(self.path_animation_index, len(self.game_history) - 1)
-            elif self.result_path:
-                idx = len(self.game_history) - 1
-            
-            if idx >= 0:
-                for r, c in self.game_history[idx]:
-                    self.renderer.draw_temp_wall(r, c)
-        
         # 2. Visited
         if self.visited_list:
             count = self.animation_index if self.is_animating else len(self.visited_list)
             self.renderer.draw_visited(self.visited_list, count)
+            
+            # Vẽ tường động đồng bộ với animation
+            if hasattr(self.current_algorithm, 'game_history') and self.current_algorithm.game_history:
+                # Đảm bảo index hợp lệ
+                idx = min(count - 1, len(self.current_algorithm.game_history) - 1)
+                if idx >= 0:
+                    self.renderer.draw_dynamic_walls(self.current_algorithm.game_history[idx])
             
         # 3. Path
         if self.result_path and not self.is_animating:

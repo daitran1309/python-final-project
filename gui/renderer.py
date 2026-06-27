@@ -49,15 +49,6 @@ class Renderer:
         elif cell_type == config.CELL_FORBIDDEN:
             pygame.draw.rect(self.surface, UITheme.CELL_FORBIDDEN, rect)
             self._draw_cell_icon(rect, "✕", UITheme.GOAL)
-
-    def draw_temp_wall(self, row, col):
-        """Vẽ tường tạm thời của thuật toán đối kháng."""
-        x = self.offset_x + col * self.cell_size
-        y = self.offset_y + row * self.cell_size
-        rect = pygame.Rect(x + 1, y + 1, self.cell_size - 1, self.cell_size - 1)
-        pygame.draw.rect(self.surface, UITheme.CELL_WALL, rect)
-        pygame.draw.rect(self.surface, (220, 50, 50), rect, width=2)
-
     def _draw_cell_icon(self, rect, icon, color):
         font = UITheme.font(max(10, self.cell_size // 3))
         text = font.render(icon, True, color)
@@ -146,6 +137,20 @@ class Renderer:
             )
 
             pygame.draw.polygon(self.surface, path_color, [end_pt, left_wing, right_wing])
+
+    def draw_dynamic_walls(self, dynamic_walls):
+        """Vẽ tường được sinh động bởi môi trường (Adversarial Search)."""
+        if not dynamic_walls:
+            return
+        for r, c in dynamic_walls:
+            x = self.offset_x + c * self.cell_size + 1
+            y = self.offset_y + r * self.cell_size + 1
+            rect = pygame.Rect(x, y, self.cell_size - 1, self.cell_size - 1)
+            
+            # Sử dụng màu xám/đen đậm hơn một chút hoặc viền đỏ để phân biệt với tường gốc
+            # Vẽ cảnh báo kẹt xe/chướng ngại vật giao thông
+            pygame.draw.rect(self.surface, UITheme.CELL_WALL, rect)
+            self._draw_cell_icon(rect, "!", (255, 150, 50)) # Icon cảnh báo màu cam
 
     def _draw_arrow(self, rect, dr, dc):
         """Vẽ mũi tên trong ô path theo hướng (dr, dc)."""
