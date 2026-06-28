@@ -1,3 +1,21 @@
+<div align="center">
+  <h2>BÁO CÁO ĐỒ ÁN CUỐI KỲ - NHÓM 13</h2>
+  <h3>ĐỀ TÀI: TỐI ƯU HÓA ĐƯỜNG ĐI CHO ROBOT GIAO HÀNG BẰNG THUẬT TOÁN TÌM KIẾM AI</h3>
+</div>
+
+**Mã lớp học phần:** 252ARIN330585_07  
+**Giảng viên hướng dẫn:** Phan Thị Huyền Trang  
+
+
+### DANH SÁCH THÀNH VIÊN NHÓM THAM GIA LÀM ĐỒ ÁN
+| STT | Họ và tên | Mã số sinh viên |
+|:---:|----------------------|:---------------:|
+| 1   | Nguyễn Văn Xuân An   | 24133002        |
+| 2   | Trần Phúc Bảo        | 24133005        |
+| 3   | Trần Phước Đại       | 24110190        |
+
+---
+
 # 🤖 Robot Giao Hàng - AI Search Algorithms
 
 ![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)
