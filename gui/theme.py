@@ -21,6 +21,7 @@ class UITheme:
     CELL_PATH = (255, 217, 61)      # #FFD93D
     CELL_FORBIDDEN = (255, 179, 179)# #FFB3B3
     CELL_WEIGHT = (212, 245, 233)   # #D4F5E9
+    CELL_BELIEF = (220, 180, 255)   # #DCB4FF Soft purple for belief state
     
     TEXT_MAIN = (30, 36, 48)        # Darker contrast
     TEXT_LIGHT = (110, 118, 138)    # Darker contrast

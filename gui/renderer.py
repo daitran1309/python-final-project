@@ -78,65 +78,15 @@ class Renderer:
             # Khung viền mờ khi đang fade in
             pygame.draw.rect(self.surface, color, rect)
     def draw_path(self, path, count=None):
-        """Vẽ path với hiệu ứng xuất hiện dần (nếu có count) và pulse."""
-        """Vẽ path với hiệu ứng xuất hiện dần (nếu có count), pulse, và mũi tên chỉ hướng."""
+        """Vẽ path bằng các mũi tên rời, không vẽ nền để tránh che khuất."""
         if not path: return
-
-        self._glow_time += 1
-        pulse = 0.5 + 0.5 * math.sin(self._glow_time * 0.1)
 
         limit = count if count is not None else len(path)
         if limit == 0:
             return
 
-        for i in range(limit):
-            row, col = path[i]
-            x = self.offset_x + col * self.cell_size + 1
-            y = self.offset_y + row * self.cell_size + 1
-            rect = pygame.Rect(x, y, self.cell_size - 1, self.cell_size - 1)
-
-            # Pulse logic cho path: golden yellow sáng lấp lánh nhẹ
-            r = int(UITheme.CELL_PATH[0] + (255 - UITheme.CELL_PATH[0]) * 0.2 * pulse)
-            g = int(UITheme.CELL_PATH[1] + (255 - UITheme.CELL_PATH[1]) * 0.2 * pulse)
-            b = int(UITheme.CELL_PATH[2] + (255 - UITheme.CELL_PATH[2]) * 0.2 * pulse)
-
-            pygame.draw.rect(self.surface, (r, g, b), rect)
-
-            # Vẽ mũi tên chỉ hướng đi (từ ô hiện tại sang ô tiếp theo)
-        points = []
-        for i in range(limit):
-            row, col = path[i]
-            cx = self.offset_x + col * self.cell_size + self.cell_size // 2
-            cy = self.offset_y + row * self.cell_size + self.cell_size // 2
-            points.append((cx, cy))
-
-        line_width = max(3, self.cell_size // 8)
-        path_color = (100, 80, 0)
-
-        if len(points) >= 2:
-            pygame.draw.lines(self.surface, path_color, False, points, line_width)
-
-            end_pt = points[-1]
-            prev_pt = points[-2]
-
-            dx = end_pt[0] - prev_pt[0]
-            dy = end_pt[1] - prev_pt[1]
-            angle = math.atan2(dy, dx)
-
-            # Kích thước đầu mũi tên
-            arrow_length = self.cell_size * 0.40
-
-            # Tính toán 2 cánh của tam giác đầu mũi tên dựa trên góc xoay vector
-            left_wing = (
-                end_pt[0] - arrow_length * math.cos(angle - math.pi / 6),
-                end_pt[1] - arrow_length * math.sin(angle - math.pi / 6)
-            )
-            right_wing = (
-                end_pt[0] - arrow_length * math.cos(angle + math.pi / 6),
-                end_pt[1] - arrow_length * math.sin(angle + math.pi / 6)
-            )
-
-            pygame.draw.polygon(self.surface, path_color, [end_pt, left_wing, right_wing])
+        path_color = (130, 100, 20) # Màu nâu vàng đặc trưng của đường đi chính
+        self._draw_arrow_path(path, limit, path_color, 0, 0)
 
     def draw_dynamic_walls(self, dynamic_walls):
         """Vẽ tường được sinh động bởi môi trường (Adversarial Search)."""
@@ -151,6 +101,98 @@ class Renderer:
             # Vẽ cảnh báo kẹt xe/chướng ngại vật giao thông
             pygame.draw.rect(self.surface, UITheme.CELL_WALL, rect)
             self._draw_cell_icon(rect, "!", (255, 150, 50)) # Icon cảnh báo màu cam
+
+    def draw_belief_state(self, belief_state):
+        """Vẽ các vị trí khả dĩ (Belief State) màu tím nhạt và dấu hỏi '?'."""
+        if not belief_state:
+            return
+        for row, col in belief_state:
+            x = self.offset_x + col * self.cell_size + 1
+            y = self.offset_y + row * self.cell_size + 1
+            rect = pygame.Rect(x, y, self.cell_size - 1, self.cell_size - 1)
+            
+            # Vẽ màu tím nhạt
+            pygame.draw.rect(self.surface, UITheme.CELL_BELIEF, rect)
+            
+            # Vẽ chữ '?' màu tím đậm ở tâm ô
+            font = UITheme.font(max(10, self.cell_size // 2), bold=True)
+            text = font.render("?", True, (120, 70, 170))
+            self.surface.blit(text, text.get_rect(center=rect.center))
+
+    def draw_belief_paths(self, belief_paths, count):
+        """Vẽ các đường đi đồng thời của các trạng thái khả dĩ (Belief State) bằng mũi tên rời."""
+        if not belief_paths: return
+
+        # Màu sắc riêng biệt cho từng belief path để dễ phân biệt
+        path_colors = [
+            (255, 100, 100),   # Đỏ nhạt
+            (100, 200, 255),   # Xanh lơ nhạt
+            (200, 100, 255),   # Tím nhạt
+            (100, 255, 100),   # Xanh lá nhạt
+            (255, 200, 100)    # Vàng cam nhạt
+        ]
+
+        for p_idx, path in enumerate(belief_paths):
+            limit = min(count, len(path))
+            if limit == 0:
+                continue
+
+            path_color = path_colors[p_idx % len(path_colors)]
+            
+            # Tính toán độ dịch (offset) để các đường không bị che đè lên nhau
+            offset_x = 0
+            offset_y = 0
+            if p_idx % 3 == 1:
+                offset_x, offset_y = -6, -6
+            elif p_idx % 3 == 2:
+                offset_x, offset_y = 6, 6
+            elif p_idx % 3 == 0 and p_idx > 0:
+                offset_x, offset_y = -6, 6
+
+            self._draw_arrow_path(path, limit, path_color, offset_x, offset_y)
+            
+    def _draw_arrow_path(self, path, limit, path_color, offset_x=0, offset_y=0):
+        """Vẽ một chuỗi mũi tên chỉ hướng cho các đoạn đường, không vẽ lines dính liền (tránh gãy góc/che nhau)."""
+        if limit < 2:
+            return
+        
+        arrow_len = self.cell_size * 0.35
+        line_width = max(2, self.cell_size // 10)
+        
+        for i in range(limit - 1):
+            r1, c1 = path[i]
+            r2, c2 = path[i+1]
+            
+            # Bỏ qua nếu đứng im tại chỗ (đập biên)
+            if r1 == r2 and c1 == c2:
+                continue
+                
+            cx = self.offset_x + c1 * self.cell_size + self.cell_size // 2 + offset_x
+            cy = self.offset_y + r1 * self.cell_size + self.cell_size // 2 + offset_y
+            nx = self.offset_x + c2 * self.cell_size + self.cell_size // 2 + offset_x
+            ny = self.offset_y + r2 * self.cell_size + self.cell_size // 2 + offset_y
+            
+            dx = nx - cx
+            dy = ny - cy
+            angle = math.atan2(dy, dx)
+            
+            # Kéo dài đoạn line mũi tên vừa đủ trong phạm vi ô (bắt đầu từ tâm cx, cy)
+            end_x = cx + math.cos(angle) * arrow_len
+            end_y = cy + math.sin(angle) * arrow_len
+            
+            pygame.draw.line(self.surface, path_color, (cx, cy), (end_x, end_y), line_width)
+            
+            # Đầu mũi tên
+            head_len = arrow_len * 0.4
+            left_wing = (
+                end_x - head_len * math.cos(angle - math.pi / 6),
+                end_y - head_len * math.sin(angle - math.pi / 6)
+            )
+            right_wing = (
+                end_x - head_len * math.cos(angle + math.pi / 6),
+                end_y - head_len * math.sin(angle + math.pi / 6)
+            )
+            pygame.draw.polygon(self.surface, path_color, [(end_x, end_y), left_wing, right_wing])
 
     def _draw_arrow(self, rect, dr, dc):
         """Vẽ mũi tên trong ô path theo hướng (dr, dc)."""

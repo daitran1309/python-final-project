@@ -90,6 +90,8 @@ class App:
         self.result_path = []
         self.visited_list = []
         self.is_drawing = False
+        self.prev_selected_algo = "BFS"
+        self.final_metrics = None
 
     def run(self):
         while self.running:
@@ -176,6 +178,17 @@ class App:
             self._load_group_map(action['group'])
         elif action['type'] == 'select_algorithm':
             self._clear_animation()
+            algo_name = action.get('algorithm')
+            if algo_name == "IDS":
+                self.grid = load_preset("IDS")
+                self._update_layout(self.screen.get_width(), self.screen.get_height())
+            elif algo_name == "Local Beam Search":
+                self.grid = load_preset("Local Beam Search")
+                self._update_layout(self.screen.get_width(), self.screen.get_height())
+            elif self.prev_selected_algo in ["IDS", "Local Beam Search"] and algo_name not in ["IDS", "Local Beam Search"]:
+                self.grid = load_preset(self.current_group)
+                self._update_layout(self.screen.get_width(), self.screen.get_height())
+            self.prev_selected_algo = algo_name
         elif action['type'] == 'speed_change':
             self.renderer.animation_speed = action['speed']
             self.sidebar.animation_speed = action['speed']
@@ -240,7 +253,8 @@ class App:
         self.final_metrics = algorithm.get_metrics()
         
         # Setup animation
-        if self.visited_list:
+        is_complex = hasattr(algorithm, 'belief_paths') and algorithm.belief_paths
+        if self.visited_list and not is_complex:
             self.is_animating = True
             self.animation_index = 0
             self.last_animation_time = pygame.time.get_ticks()
@@ -280,6 +294,9 @@ class App:
         self.grid = load_preset(group_name)
         self._update_layout(self.screen.get_width(), self.screen.get_height())
         self._clear_animation()
+        # Cập nhật thuật toán trước đó khi đổi nhóm
+        if self.sidebar.selected_group and self.sidebar.selected_group in config.ALGORITHM_GROUPS:
+            self.prev_selected_algo = config.ALGORITHM_GROUPS[self.sidebar.selected_group][0]
 
     def _clear_animation(self):
         self.is_animating = False
@@ -293,7 +310,12 @@ class App:
         self.final_metrics = None
 
     def _reset(self):
-        self.grid = load_preset(self.current_group)
+        if self.sidebar.selected_algorithm == "IDS":
+            self.grid = load_preset("IDS")
+        elif self.sidebar.selected_algorithm == "Local Beam Search":
+            self.grid = load_preset("Local Beam Search")
+        else:
+            self.grid = load_preset(self.current_group)
         self._update_layout(self.screen.get_width(), self.screen.get_height())
         self._clear_animation()
 
@@ -315,15 +337,31 @@ class App:
             # Real-time metrics update
             if self.final_metrics:
                 ratio = self.animation_index / max(1, len(self.visited_list))
+                
+                # Trích xuất belief state của bước đầu tiên khi đang tìm kiếm
+                belief_size = 0
+                belief_coords = []
+                if self.current_algorithm and hasattr(self.current_algorithm, 'belief_history') and self.current_algorithm.belief_history:
+                    b_state = self.current_algorithm.belief_history[0]
+                    belief_size = len(b_state)
+                    belief_coords = sorted(list(b_state))
+                
                 self.sidebar.metrics = {
                     'steps': int(self.final_metrics['steps'] * ratio),
                     'path_length': 0,
                     'execution_time': self.final_metrics['execution_time'] * ratio,
                     'visited_count': self.animation_index
                 }
+                if belief_size > 0:
+                    self.sidebar.metrics['belief_size'] = belief_size
+                    self.sidebar.metrics['belief_coords'] = belief_coords
                 
         elif self.is_animating_path:
-            path_speed = 30 # Cố định tốc độ path trace 30ms theo yêu cầu
+            # Đối với Complex Environment, dùng tốc độ tùy chỉnh từ sidebar để người dùng dễ quan sát.
+            # Đối với các thuật toán khác, giữ nguyên 30ms theo yêu cầu cũ.
+            is_complex = hasattr(self.current_algorithm, 'belief_paths') and self.current_algorithm.belief_paths
+            path_speed = self.sidebar.animation_speed if is_complex else 30
+            
             if current_time - self.last_animation_time >= path_speed:
                 self.path_animation_index += 1
                 self.last_animation_time = current_time
@@ -332,12 +370,58 @@ class App:
                     self.sidebar.metrics = self.final_metrics
             
             if self.final_metrics:
+                idx = max(0, self.path_animation_index - 1)
+                belief_size = 0
+                belief_coords = []
+                if self.current_algorithm and hasattr(self.current_algorithm, 'belief_history') and self.current_algorithm.belief_history:
+                    if idx < len(self.current_algorithm.belief_history):
+                        full_b_state = self.current_algorithm.belief_history[idx]
+                        belief_size = len(full_b_state)
+                        
+                        # Chỉ lấy các ô xuất hiện trong belief_paths tại bước idx để vẽ giao diện demo
+                        demo_b_state = set()
+                        if hasattr(self.current_algorithm, 'belief_paths') and self.current_algorithm.belief_paths:
+                            for path in self.current_algorithm.belief_paths:
+                                if idx < len(path):
+                                    demo_b_state.add(path[idx])
+                                elif len(path) > 0 and path[-1] in full_b_state:
+                                    demo_b_state.add(path[-1])
+                        else:
+                            demo_b_state = set(full_b_state)
+                            
+                        belief_coords = sorted(list(demo_b_state))
+                        b_state = frozenset(demo_b_state)
+                
                 self.sidebar.metrics = {
                     'steps': self.final_metrics['steps'],
                     'path_length': self.path_animation_index,
                     'execution_time': self.final_metrics['execution_time'],
                     'visited_count': self.final_metrics['visited_count']
                 }
+                if belief_size > 0:
+                    self.sidebar.metrics['belief_size'] = belief_size
+                    self.sidebar.metrics['belief_coords'] = belief_coords
+        else:
+            # Đồng bộ metrics cuối cùng khi kết thúc toàn bộ animation
+            if self.final_metrics:
+                idx = len(self.result_path) - 1 if self.result_path else 0
+                belief_size = 0
+                belief_coords = []
+                if self.current_algorithm and hasattr(self.current_algorithm, 'belief_history') and self.current_algorithm.belief_history:
+                    if idx < len(self.current_algorithm.belief_history):
+                        b_state = self.current_algorithm.belief_history[idx]
+                        belief_size = len(b_state)
+                        belief_coords = sorted(list(b_state))
+                
+                self.sidebar.metrics = {
+                    'steps': self.final_metrics['steps'],
+                    'path_length': len(self.result_path) if self.result_path else 0,
+                    'execution_time': self.final_metrics['execution_time'],
+                    'visited_count': self.final_metrics['visited_count']
+                }
+                if belief_size > 0:
+                    self.sidebar.metrics['belief_size'] = belief_size
+                    self.sidebar.metrics['belief_coords'] = belief_coords
 
     def _draw(self):
         self.screen.fill(UITheme.BG_LIGHT)
@@ -357,6 +441,26 @@ class App:
                 if idx >= 0:
                     self.renderer.draw_dynamic_walls(self.current_algorithm.game_history[idx])
             
+        # 2.5 Belief Paths & Belief State cho Complex Environment
+        if self.current_algorithm and hasattr(self.current_algorithm, 'belief_paths') and self.current_algorithm.belief_paths:
+            if not self.is_animating:
+                count = self.path_animation_index if self.is_animating_path else len(self.result_path)
+                # Vẽ các đường đi đồng thời của belief states
+                self.renderer.draw_belief_paths(self.current_algorithm.belief_paths, count)
+                
+                # Vẽ belief state hiện tại nổi bật lên trên
+                idx = max(0, count - 1)
+                if hasattr(self.current_algorithm, 'belief_history') and idx < len(self.current_algorithm.belief_history):
+                    full_b_state = self.current_algorithm.belief_history[idx]
+                    demo_b_state = set()
+                    for path in getattr(self.current_algorithm, 'belief_paths', []):
+                        if idx < len(path):
+                            demo_b_state.add(path[idx])
+                        elif len(path) > 0 and path[-1] in full_b_state:
+                            demo_b_state.add(path[-1])
+                    
+                    self.renderer.draw_belief_state(demo_b_state if demo_b_state else full_b_state)
+
         # 3. Path
         if self.result_path and not self.is_animating:
             count = self.path_animation_index if self.is_animating_path else len(self.result_path)

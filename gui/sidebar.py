@@ -15,6 +15,7 @@ LEGEND_ITEMS = [
     ("Vùng cấm", UITheme.CELL_FORBIDDEN),
     ("Đã duyệt", UITheme.CELL_VISITED),
     ("Đường đi", UITheme.CELL_PATH),
+    ("Vị trí khả dĩ", UITheme.CELL_BELIEF),
 ]
 
 DRAW_MODE_MAP = {
@@ -258,12 +259,26 @@ class Sidebar:
         time_ms = self.metrics.get('execution_time', 0)*1000 if self.metrics else 0
         frontier = self.metrics.get('visited_count', 0) if self.metrics else 0
         
-        stats = [
-            ("Số ô đã duyệt", str(nodes), UITheme.PRIMARY),
-            ("Độ dài đường đi", f"{path_len} ô", UITheme.CELL_PATH),
-            ("Thời gian chạy", f"{time_ms:.1f} ms", UITheme.START),
-            ("Ô chờ (Frontier)", str(frontier), UITheme.GOAL),
-        ]
+        if self.metrics and 'belief_size' in self.metrics:
+            b_size = self.metrics.get('belief_size', 0)
+            b_coords = self.metrics.get('belief_coords', [])
+            coords_str = ", ".join(f"({r},{c})" for r, c in b_coords[:4])
+            if len(b_coords) > 4:
+                coords_str += "..."
+                
+            stats = [
+                ("Số ô khả dĩ", str(b_size), UITheme.CELL_BELIEF),
+                ("Vị trí khả dĩ", coords_str if coords_str else "Không rõ", UITheme.PRIMARY),
+                ("Độ dài đường đi", f"{path_len} ô", UITheme.CELL_PATH),
+                ("Thời gian chạy", f"{time_ms:.1f} ms", UITheme.START),
+            ]
+        else:
+            stats = [
+                ("Số ô đã duyệt", str(nodes), UITheme.PRIMARY),
+                ("Độ dài đường đi", f"{path_len} ô", UITheme.CELL_PATH),
+                ("Thời gian chạy", f"{time_ms:.1f} ms", UITheme.START),
+                ("Ô chờ (Frontier)", str(frontier), UITheme.GOAL),
+            ]
         
         for lbl, val, color in stats:
             # Thin colored left-border accent

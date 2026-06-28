@@ -11,15 +11,16 @@ Steepest Ascent Hill Climbing - Leo đồi dốc nhất.
 
 from algorithms.base import BaseAlgorithm
 from core.node import Node
-from utils.helpers import manhattan_distance
+from utils.helpers import euclidean_distance
 
 
 class SteepestHillClimbing(BaseAlgorithm):
     """Thuật toán Steepest Ascent Hill Climbing (Leo đồi dốc nhất)."""
 
-    def __init__(self, problem, max_sideways=50):
+    def __init__(self, problem, max_sideways=50, max_worse_moves=100):
         super().__init__(problem, name="Steepest Hill Climbing")
         self.max_sideways = max_sideways  # Giới hạn sideways move liên tiếp
+        self.max_worse_moves = max_worse_moves  # Giới hạn bước đi xấu hơn liên tiếp khi bị kẹt tường
 
     def solve(self):
         """
@@ -34,7 +35,7 @@ class SteepestHillClimbing(BaseAlgorithm):
         start_pos = self.problem.start
         goal_pos = self.problem.goal
 
-        current_h = manhattan_distance(start_pos, goal_pos)
+        current_h = euclidean_distance(start_pos, goal_pos)
         current_node = Node(start_pos[0], start_pos[1], cost=0, heuristic=current_h)
 
         visited_set = {start_pos}  # Tránh vòng lặp
@@ -45,6 +46,7 @@ class SteepestHillClimbing(BaseAlgorithm):
             return [start_pos]
 
         sideways_count = 0  # Đếm số sideways move liên tiếp
+        worse_count = 0     # Đếm số bước đi lùi/rẽ hướng xấu hơn liên tiếp
 
         while True:
             pos = current_node.position
@@ -56,7 +58,7 @@ class SteepestHillClimbing(BaseAlgorithm):
             for next_pos, cost in self.problem.get_successors(pos):
                 if next_pos in visited_set:
                     continue
-                next_h = manhattan_distance(next_pos, goal_pos)
+                next_h = euclidean_distance(next_pos, goal_pos)
                 if next_h < best_h:
                     best_h = next_h
                     best_neighbor = next_pos
@@ -67,6 +69,28 @@ class SteepestHillClimbing(BaseAlgorithm):
                     best_neighbor = next_pos
                     best_cost = cost
                     is_sideways = True
+
+            if best_neighbor is not None:
+                worse_count = 0  # Reset khi tìm thấy bước tốt/đi ngang
+            else:
+                # Fallback: Nếu gặp tường (không có ô kề nào tốt hơn hoặc bằng),
+                # chọn ô kề chưa đi qua tốt nhất (ít xấu nhất) để rẽ hướng
+                if worse_count < self.max_worse_moves:
+                    min_worse_h = float('inf')
+                    for next_pos, cost in self.problem.get_successors(pos):
+                        if next_pos in visited_set:
+                            continue
+                        next_h = euclidean_distance(next_pos, goal_pos)
+                        if next_h < min_worse_h:
+                            min_worse_h = next_h
+                            best_neighbor = next_pos
+                            best_cost = cost
+                    
+                    if best_neighbor is not None:
+                        worse_count += 1
+                        sideways_count = 0
+                        best_h = min_worse_h
+                        is_sideways = False
 
             if best_neighbor is None:
                 break

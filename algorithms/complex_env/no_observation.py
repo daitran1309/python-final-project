@@ -50,14 +50,14 @@ class NoObservationSearch(BaseAlgorithm):
         if not self.problem.is_valid():
             return []
             
-        # Khởi tạo belief state ban đầu là tất cả các ô đi được
-        initial_belief = []
+        # Khởi tạo belief state ban đầu gồm tất cả các ô đi được (như ban đầu)
+        walkable_cells = []
         for r in range(grid.rows):
             for c in range(grid.cols):
-                if grid.is_walkable(r, c):
-                    initial_belief.append((r, c))
-        initial_belief = frozenset(initial_belief)
+                if grid.is_walkable(r, c) and (r, c) != goal_pos:
+                    walkable_cells.append((r, c))
         
+        initial_belief = frozenset(walkable_cells)
         actions = [(-1, 0), (1, 0), (0, -1), (0, 1)] # UP, DOWN, LEFT, RIGHT
         
         # Tăng max_iterations đáng kể để đủ cho belief state space
@@ -117,13 +117,43 @@ class NoObservationSearch(BaseAlgorithm):
         if found_actions is None:
             return []
             
-        # Mô phỏng từ start để lấy tọa độ di chuyển
+        # Mô phỏng từ start để lấy tọa độ di chuyển và belief state tương ứng
         coordinate_path = [start_pos]
+        belief_history = [initial_belief]
         curr = start_pos
+        curr_belief = initial_belief
         for act in found_actions:
             curr = self._apply_action(curr, act, grid)
             coordinate_path.append(curr)
             
+            curr_belief = self._apply_action_to_belief(curr_belief, act, grid)
+            belief_history.append(curr_belief)
+            
+        self.belief_history = belief_history
+
+        # Sinh belief_paths cho mỗi trạng thái xuất phát ban đầu
+        # Chỉ tạo belief_paths cho 2 ô demo (gồm start_pos và tối đa 1 ô ngẫu nhiên khác)
+        import random
+        random.seed(42)
+        demo_starts = [start_pos]
+        others = [p for p in initial_belief if p != start_pos]
+        demo_starts.extend(random.sample(others, min(1, len(others))))
+        
+        paths = {s: [s] for s in demo_starts}
+        curr_positions = {s: s for s in demo_starts}
+        active_states = set(demo_starts)
+        
+        for act in found_actions:
+            new_curr = {}
+            for orig_start, curr_pos in curr_positions.items():
+                if orig_start not in active_states:
+                    continue
+                next_pos = self._apply_action(curr_pos, act, grid)
+                paths[orig_start].append(next_pos)
+                new_curr[orig_start] = next_pos
+            curr_positions.update(new_curr)
+            
+        self.belief_paths = list(paths.values())
         return coordinate_path
 
     def _apply_action(self, position, action, grid):

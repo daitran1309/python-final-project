@@ -10,7 +10,7 @@ Local Beam Search - Tìm kiếm chùm cục bộ.
 
 from algorithms.base import BaseAlgorithm
 from core.node import Node
-from utils.helpers import manhattan_distance
+from utils.helpers import euclidean_distance
 
 
 class LocalBeamSearch(BaseAlgorithm):
@@ -38,7 +38,7 @@ class LocalBeamSearch(BaseAlgorithm):
         start_pos = self.problem.start
         goal_pos = self.problem.goal
         
-        start_h = manhattan_distance(start_pos, goal_pos)
+        start_h = euclidean_distance(start_pos, goal_pos)
         start_node = Node(start_pos[0], start_pos[1], cost=0, heuristic=start_h)
         
         beams = [start_node]
@@ -56,7 +56,7 @@ class LocalBeamSearch(BaseAlgorithm):
                 pos = node.position
                 for next_pos, cost in self.problem.get_successors(pos):
                     if next_pos not in visited_set:
-                        next_h = manhattan_distance(next_pos, goal_pos)
+                        next_h = euclidean_distance(next_pos, goal_pos)
                         child = Node(next_pos[0], next_pos[1], cost=node.cost + cost, heuristic=next_h, parent=node)
                         successors.append(child)
             
