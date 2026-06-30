@@ -462,7 +462,10 @@ class App:
                     self.renderer.draw_belief_state(demo_b_state if demo_b_state else full_b_state)
 
         # 3. Path
-        if self.result_path and not self.is_animating:
+        if self.is_animating and hasattr(self.current_algorithm, 'path_history') and self.current_algorithm.path_history:
+            idx = min(self.animation_index, len(self.current_algorithm.path_history) - 1)
+            self.renderer.draw_path(self.current_algorithm.path_history[idx])
+        elif self.result_path and not self.is_animating:
             count = self.path_animation_index if self.is_animating_path else len(self.result_path)
             self.renderer.draw_path(self.result_path, count)
 

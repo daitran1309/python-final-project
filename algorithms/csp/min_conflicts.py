@@ -29,6 +29,7 @@ class MinConflicts(BaseAlgorithm):
         """
         super().__init__(problem, name="Min-Conflicts")
         self.max_iterations = max_iterations
+        self.path_history = []
 
     def solve(self):
         """
@@ -43,6 +44,8 @@ class MinConflicts(BaseAlgorithm):
         path = self._generate_initial_assignment()
         if not path:
             return []
+            
+        self.path_history.append(list(path))
             
         N = len(path)
         if N <= 1:
@@ -97,6 +100,7 @@ class MinConflicts(BaseAlgorithm):
                     
             path[idx] = best_val
             self.visited.append(best_val)
+            self.path_history.append(list(path))
             self.steps += 1
             
         # Kiểm tra kết quả cuối cùng
@@ -168,23 +172,35 @@ class MinConflicts(BaseAlgorithm):
         start_pos = self.problem.start
         goal_pos = self.problem.goal
         
-        # Thử tạo path hợp lệ bằng random BFS
+        # Lấy một đường đi hợp lệ làm gốc
         path = self._random_bfs_path(start_pos, goal_pos)
-        if path:
+        if not path:
+            # Fallback: đường L-shaped nếu không tìm được đường
+            path = [start_pos]
+            r, c = start_pos
+            gr, gc = goal_pos
+            while r != gr:
+                r += 1 if gr > r else -1
+                path.append((r, c))
+            while c != gc:
+                c += 1 if gc > c else -1
+                path.append((r, c))
             return path
-        
-        # Fallback: đường L-shaped (có thể vi phạm)
-        path = [start_pos]
-        r, c = start_pos
-        gr, gc = goal_pos
-        
-        while r != gr:
-            r += 1 if gr > r else -1
-            path.append((r, c))
-        while c != gc:
-            c += 1 if gc > c else -1
-            path.append((r, c))
             
+        # Tạo nhiễu (conflicts) nhân tạo trên đường đi để Min-Conflicts có cơ hội hoạt động (sửa lỗi)
+        # Nếu đường đi quá hoàn hảo thì thuật toán sẽ kết thúc ngay ở bước 0.
+        if len(path) > 4:
+            # Phá hỏng khoảng 20% các ô trên đường đi (trừ ô đầu và đích)
+            num_noise = max(1, len(path) // 5)
+            indices = random.sample(range(1, len(path) - 1), num_noise)
+            for idx in indices:
+                r, c = path[idx]
+                # Cố tình dời node này đi 1-2 ô ngẫu nhiên để tạo đứt gãy hoặc đâm vào tường
+                dr = random.choice([-1, 0, 1])
+                dc = random.choice([-1, 0, 1])
+                if dr == 0 and dc == 0: dr = 1
+                path[idx] = (r + dr, c + dc)
+                
         return path
 
     def _random_bfs_path(self, start, goal):
